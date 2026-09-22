@@ -20,6 +20,9 @@ struct HelperMenu: View {
             cfg.createsNewApplicationInstance = true
             NSWorkspace.shared.openApplication(at: url, configuration: cfg)
         }
-        Button("Quit Helper") { NSApp.terminate(nil) }
+        Button("Stop Helper (until next login)") {
+            app.helperAgent.stopNow()
+            NSApp.terminate(nil)
+        }
     }
 }

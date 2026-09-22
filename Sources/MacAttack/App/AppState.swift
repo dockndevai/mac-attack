@@ -13,6 +13,8 @@ enum InputMode: String, CaseIterable, Identifiable {
 struct LaunchOptions {
     var simulate = false, autopilot = false, debug = false, chaos = false, noSidecar = false, noSound = false
     var slowLaya = false
+    /// Open full screen (used for recording demos).
+    var fullscreen = false
     /// Menu-bar-only mode: owns the camera for the screensaver, no game window.
     var helper = false
     var layaPort = 8777
@@ -27,6 +29,7 @@ struct LaunchOptions {
         o.noSound = args.contains("--no-sound")
         o.slowLaya = args.contains("--slow-laya")
         o.helper = args.contains("--helper")
+        o.fullscreen = args.contains("--fullscreen")
         if let i = args.firstIndex(of: "--laya-port"), i + 1 < args.count, let p = Int(args[i + 1]) { o.layaPort = p }
         if o.autopilot { o.simulate = true }
         return o
@@ -77,6 +80,7 @@ final class AppState {
     @ObservationIgnored private var lastTracks: [TrackSnapshot] = []
 
     var isHelper: Bool { options.helper }
+    var wantsFullscreen: Bool { options.fullscreen }
 
     private init() {
         options = LaunchOptions.parse()

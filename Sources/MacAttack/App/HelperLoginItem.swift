@@ -40,7 +40,9 @@ final class HelperLoginItem {
             "Label": Self.label,
             "ProgramArguments": [exe, "--helper"],
             "RunAtLoad": true,
-            "KeepAlive": ["SuccessfulExit": false],
+            // Always keep it alive: quitting the game app must not silently take the
+            // screensaver's camera helper down with it.
+            "KeepAlive": true,
             "ProcessType": "Interactive",
             "StandardErrorPath": FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent("Library/Logs/MacAttack/helper.log").path,
@@ -57,6 +59,11 @@ final class HelperLoginItem {
         } catch {
             lastError = "\(error)"
         }
+    }
+
+    /// Stop the helper for this session (it comes back at next login, or on Install again).
+    func stopNow() {
+        launchctl(["bootout", "gui/\(getuid())/\(Self.label)"])
     }
 
     func uninstall() {

@@ -5,6 +5,12 @@ become anonymous cartoon characters (🐸 🧙 🥔 👽 🦆 🤖 🐱 🦖 �
 chaos at them: bubbles, rubber ducks, tomatoes, balloons, sponges, confetti, rainbows, emoji
 bursts, transformations and surprises.
 
+![Mac Attack in simulation mode](docs/demo.gif)
+
+**Videos:** [simulation mode](docs/mac-attack-simulation-demo.mp4) (the game + debug panel + Laya's
+decisions) · [screensaver](docs/mac-attack-screensaver-demo.mp4) (a real person, rendered as a
+cartoon character — the screensaver never sees the camera image, only anonymous boxes).
+
 ```
 Camera (AVFoundation ~30fps) → Vision body boxes (~10fps) → PersonTracker → GameEngine (60fps)
                                                                    │  GameSnapshot (JSON only)
@@ -15,6 +21,10 @@ Camera (AVFoundation ~30fps) → Vision body boxes (~10fps) → PersonTracker �
                                                                    ▼
                                                GameEvent → SpriteKit renderer → screen
 ```
+
+> **Unsigned build.** This is signed ad-hoc, so macOS will warn on first launch (right-click → Open)
+> and may re-ask for camera permission after each rebuild. Signing with an Apple Developer ID
+> removes both.
 
 ## Build & run
 

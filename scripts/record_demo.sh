@@ -8,7 +8,7 @@ SECS="${1:-50}"
 OUT="build/mac-attack-demo.mp4"
 RAW="build/.demo-raw.mov"
 mkdir -p build
-osascript -e 'quit app "Mac Attack"' 2>/dev/null || true
+pkill -f "MacAttack --simulate" 2>/dev/null || true   # never touch the --helper instance
 sleep 1
 open build/MacAttack.app --args --simulate --debug --no-sound
 sleep 5

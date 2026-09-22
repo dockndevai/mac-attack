@@ -31,7 +31,14 @@ struct RootView: View {
             Color.clear.frame(width: 1, height: 1)
                 .onAppear { for w in NSApp.windows where w.isVisible && !(w is NSPanel) { w.close() } }
         } else {
-            ContentView().frame(minWidth: 1040, minHeight: 640)
+            ContentView()
+                .frame(minWidth: 1040, minHeight: 640)
+                .onAppear {
+                    guard app.wantsFullscreen else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        NSApp.windows.first(where: { $0.isVisible })?.toggleFullScreen(nil)
+                    }
+                }
         }
     }
 }
