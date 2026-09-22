@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Mac Attack</string>
+	<key>CFBundleDisplayName</key><string>Mac Attack</string>
+	<key>CFBundleIdentifier</key><string>local.macattack.saver</string>
+	<key>CFBundleExecutable</key><string>MacAttackSaver</string>
+	<key>CFBundlePackageType</key><string>BNDL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>NSPrincipalClass</key><string>MacAttackSaverView</string>
+	<key>MacAttackAppPath</key><string>__HELPER__</string>
+	<key>NSCameraUsageDescription</key><string>Mac Attack watches the room locally to turn people into cartoon characters. Video never leaves your Mac and is never recorded.</string>
+</dict>
+</plist>

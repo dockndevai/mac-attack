@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Mac Attack</string>
+	<key>CFBundleDisplayName</key><string>Mac Attack</string>
+	<key>CFBundleIdentifier</key><string>local.macattack</string>
+	<key>CFBundleExecutable</key><string>MacAttack</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSCameraUsageDescription</key><string>Mac Attack watches the room locally to turn people into cartoon characters. Video never leaves your Mac, is never recorded, and no faces are recognized.</string>
+	<key>MacAttackLayaDirectory</key><string>__LAYA_DIR__</string>
+</dict>
+</plist>

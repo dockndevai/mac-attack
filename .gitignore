@@ -1,0 +1,6 @@
+.build/
+build/
+LayaDirector/.venv/
+__pycache__/
+*.log
+.DS_Store
