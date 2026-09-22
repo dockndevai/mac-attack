@@ -152,9 +152,12 @@ final class AppState {
     /// One line a minute to ~/Library/Logs/MacAttack/stats-<port>.log (for soak tests). Counts only.
     private func logStats() {
         let c = coordinator, h = engine.hud
-        let line = String(format: "%@ elapsed=%.0f fps=%.1f detfps=%.1f nodes=%d people=%d events=%d laya=%d fallback=%d health=%@ latency=%.0f\n",
+        var tally: [String: Int] = [:]
+        for e in c.log where !e.decision.holdBack { tally[e.decision.effect.rawValue, default: 0] += 1 }
+        let mix = tally.sorted { $0.value > $1.value }.map { "\($0.key):\($0.value)" }.joined(separator: ",")
+        let line = String(format: "%@ elapsed=%.0f fps=%.1f detfps=%.1f nodes=%d people=%d events=%d laya=%d fallback=%d health=%@ latency=%.0f mix=%@\n",
                           ISO8601DateFormatter().string(from: Date()), h.elapsed, scene.fps, detectionFPS, scene.liveNodeCount,
-                          h.people.count, h.eventCount, c.layaDecisions, c.fallbackDecisions, c.health.label, c.lastLatencyMs ?? -1)
+                          h.people.count, h.eventCount, c.layaDecisions, c.fallbackDecisions, c.health.label, c.lastLatencyMs ?? -1, mix)
         let url = sidecar.logURL.deletingLastPathComponent().appendingPathComponent("stats-\(options.layaPort).log")
         if let fh = try? FileHandle(forWritingTo: url) {
             fh.seekToEndOfFile(); fh.write(Data(line.utf8)); try? fh.close()
