@@ -110,15 +110,40 @@ public enum LayaDecisionMapper {
         }
         var rationale: [String: [(String, Double)]] = [:]
 
+        // How much a just-used effect is discouraged, newest first. Without this the game locks
+        // onto whatever Laya likes in a given scene: for one stationary person it puts ~90% on
+        // "surprise" every single time, so every decision came back the same.
+        func recencyPenalty(_ effect: String) -> Double {
+            // hard stop: the same gag never runs three times in a row
+            if s.recent_effects.count >= 2, s.recent_effects[0] == effect, s.recent_effects[1] == effect { return 0 }
+            guard let i = s.recent_effects.firstIndex(of: effect) else { return 1 }
+            return [0.08, 0.25, 0.45, 0.7][min(i, 3)]
+        }
+        // Rarity priors + cooldowns: the stunts punctuate the game, they don't carry it. Laya is
+        // very keen on "surprise" for a lone stationary person (~90%), so it gets a hard cooldown.
+        let stylePrior = ["projectile": 1.3, "area": 1.0, "transform": 0.6, "surprise": 0.25]
+        let cooldown = ["surprise": 5, "transform": 3]   // events that must pass before reuse
+
         var style = try probs("style")
         if s.people.isEmpty { style["projectile"] = 0; style["transform"] = 0 }
+        for k in style.keys {
+            style[k]! *= stylePrior[k] ?? 1
+            // a style is stale if the effects it produces were just used
+            switch k {
+            case "surprise", "transform":
+                style[k]! *= s.recent_effects.prefix(cooldown[k] ?? 0).contains(k) ? 0 : recencyPenalty(k)
+            // a category stays attractive as long as ONE of its effects is still fresh
+            case "projectile": style[k]! *= EffectKind.projectiles.map { recencyPenalty($0.rawValue) }.max() ?? 1
+            case "area": style[k]! *= EffectKind.areas.map { recencyPenalty($0.rawValue) }.max() ?? 1
+            default: break
+            }
+        }
         rationale["style"] = Sampler.top(style)
         let styleKey = Sampler.sample(style, temperature: t, using: &rng) ?? "projectile"
 
-        let lastEffect = s.last_event?.effect
         func pick(_ k: String) throws -> EffectKind {
             var p = try probs(k)
-            if let l = lastEffect, p[l] != nil { p[l]! *= 0.35 }   // avoid repeating the same gag
+            for key in p.keys { p[key]! *= recencyPenalty(key) }
             rationale[k] = Sampler.top(p)
             let key = Sampler.sample(p, temperature: t, using: &rng)
             guard let key, let e = EffectKind(rawValue: key) else { throw LayaError.badResponse("unknown effect \(key ?? "nil")") }

@@ -125,6 +125,43 @@ import Testing
         #expect(!d.holdBack)
     }
 
+    /// Laya puts ~90% on "surprise" for a lone stationary person, so without recency penalties the
+    /// game replays the same stunt forever. Over a run the director must still vary itself.
+    @Test func doesNotRepeatTheSameEffectForever() throws {
+        var rng = SplitMix64(seed: 99)
+        var recent: [String] = []
+        var picks: [EffectKind] = []
+        for _ in 0..<40 {
+            var st = GameState()
+            st.people = [Person(id: "person-1", box: NormRect(x: 0.4, y: 0.3, width: 0.2, height: 0.5), vx: 0, vy: 0,
+                                movement: .stationary, character: .robot, lifetime: 20, timesHit: picks.count, number: 1)]
+            st.recentEffects = recent.compactMap { EffectKind(rawValue: $0) }
+            let snap = GameSnapshot(state: st, trigger: .timer)
+            // probabilities shaped like the real model's answer for this scene
+            let r = LayaResponse(answers: [
+                "style": LayaAnswer(type: "choice", probabilities: ["surprise": 0.9, "projectile": 0.06, "area": 0.02, "transform": 0.02]),
+                "projectile": LayaAnswer(type: "choice", probabilities: ["duck_rain": 0.3, "balloon_attack": 0.25, "tomato_throw": 0.22, "sponge_shot": 0.13, "bubble_blast": 0.1]),
+                "area": LayaAnswer(type: "choice", probabilities: ["emoji_explosion": 0.33, "confetti_explosion": 0.29, "bubble_storm": 0.2, "rainbow_explosion": 0.18]),
+                "target": LayaAnswer(type: "choice", probabilities: ["person-1": 1.0]),
+                "intensity": LayaAnswer(type: "score", probabilities: ["1": 0.5, "2": 0.5]),
+                "reaction": LayaAnswer(type: "choice", probabilities: ["jump": 0.5, "dodge": 0.5]),
+                "hold_back": LayaAnswer(type: "noul", noul: 0.2),
+                "mood": LayaAnswer(type: "choice", probabilities: ["mischievous": 1.0]),
+            ], latency_ms: 1)
+            let d = try LayaDecisionMapper.map(r, snapshot: snap, temperature: 1, using: &rng)
+            picks.append(d.effect)
+            recent.insert(d.effect.rawValue, at: 0)
+            if recent.count > 6 { recent.removeLast() }
+        }
+        let surprises = picks.filter { $0 == .surprise }.count
+        #expect(Set(picks).count >= 5, "only saw \(Set(picks))")
+        #expect(surprises < 10, "surprise dominated: \(surprises)/40")
+        // and never three in a row
+        for i in 2..<picks.count {
+            #expect(!(picks[i] == picks[i - 1] && picks[i] == picks[i - 2]), "3× \(picks[i]) in a row")
+        }
+    }
+
     @Test func areaEffectTargetsEveryone() throws {
         var rng = SplitMix64(seed: 1)
         let d = try LayaDecisionMapper.map(Self.response(style: "area"), snapshot: snapshot(people: 2),

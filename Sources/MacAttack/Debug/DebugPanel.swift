@@ -149,6 +149,19 @@ struct LayaSection: View {
             Text("Director: \(c.useLaya && c.health == .ready ? "Laya" : "Local Fallback")")
             Text("Decisions: Laya \(c.layaDecisions) · Fallback \(c.fallbackDecisions)")
             if let l = c.lastLatencyMs { Text(String(format: "Last Laya latency: %.0f ms", l)) }
+            switch app.layaSetup.state {
+            case .missing:
+                Text("Laya is not set up on this Mac — the local fallback director is running.")
+                    .foregroundStyle(.orange)
+                Button("Set Up Laya (~2.5 GB download)") { app.runLayaSetup() }.controlSize(.small)
+            case .running:
+                Text("Setting up Laya… \(app.layaSetup.lastLine)").foregroundStyle(.secondary)
+            case .failed(let why):
+                Text(why).foregroundStyle(.red)
+                Button("Retry Laya Setup") { app.runLayaSetup() }.controlSize(.small)
+            case .ready, .unknown:
+                EmptyView()
+            }
             Toggle("Use Laya", isOn: $c.useLaya)
             Toggle("Simulate slow Laya (+3 s)", isOn: $c.simulateSlowLaya)
             Text("Phase: \(hud.phase.rawValue)\(hud.awaiting ? " (asking…)" : "")")

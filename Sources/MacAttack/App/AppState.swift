@@ -68,6 +68,7 @@ final class AppState {
     @ObservationIgnored let sidecar: LayaSidecar
     @ObservationIgnored let perception = PerceptionServer()
     @ObservationIgnored let helperAgent = HelperLoginItem()
+    @ObservationIgnored let layaSetup = LayaSetup()
     @ObservationIgnored private let options: LaunchOptions
     @ObservationIgnored private var rawDetections: [NormRect] = []
     @ObservationIgnored private var detCount = 0
@@ -115,6 +116,7 @@ final class AppState {
         started = true
         NSLog("MacAttack: start mode=%@ laya=%@", mode.rawValue, sidecar.directory?.path ?? "nil")
         coordinator.start()
+        refreshLayaSetup()
         if !options.noSidecar {
             let sc = sidecar, adapter = coordinator.laya
             Task.detached { await sc.launchIfNeeded(adapter: adapter) }
@@ -226,6 +228,12 @@ final class AppState {
         scene.showDebugBoxes = debug && showBoxes
     }
 
+    func refreshLayaSetup() { layaSetup.refresh(layaDirectory: sidecar.directory) }
+
+    func runLayaSetup() {
+        layaSetup.run(layaDirectory: sidecar.directory)
+    }
+
     func refreshHelperStatus() {
         helperInstalled = helperAgent.isInstalled
         helperRunning = helperAgent.isRunning
@@ -305,9 +313,21 @@ final class AppState {
 
     /// LayaDirector lives in the repo, not the bundle: env var, then Info.plist (set by
     /// build_app.sh), then walking up from the executable (for `swift run`), then cwd.
+    /// A developer checkout keeps its own venv next to the sources; prefer that when present.
+    private static func isDevCheckout() -> Bool {
+        if let p = Bundle.main.object(forInfoDictionaryKey: "MacAttackLayaDirectory") as? String {
+            return FileManager.default.isExecutableFile(atPath: p + "/.venv/bin/python")
+        }
+        return false
+    }
+
     static func locateLayaDirector() -> URL? {
         let fm = FileManager.default
         func ok(_ u: URL) -> Bool { fm.fileExists(atPath: u.appendingPathComponent("run.sh").path) }
+        // inside an installed app the sidecar ships in Resources
+        if let r = Bundle.main.resourceURL?.appendingPathComponent("LayaDirector"), ok(r), !isDevCheckout() {
+            return r
+        }
         if let e = ProcessInfo.processInfo.environment["MACATTACK_LAYA_DIR"] {
             let u = URL(fileURLWithPath: e)
             if ok(u) { return u }

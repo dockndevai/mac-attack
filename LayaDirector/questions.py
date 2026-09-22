@@ -11,10 +11,10 @@ from typing import Any, Dict, List
 # Laya's per-option-count temperature for 11+ choices is uncalibrated (it saturates to 1.0),
 # so the effect is decided as style (4 options) + a specific projectile (5) or area effect (4).
 STYLES = {
-    "projectile": "throw a toy at one specific human",
-    "area": "a big effect over the whole room, good with several humans or a celebration",
-    "transform": "turn a human's character into a different creature",
-    "surprise": "something totally unexpected, only when things have become predictable",
+    "projectile": "the usual: throw a soft toy at one human. This is the bread and butter of the game",
+    "area": "a big effect over the whole room: confetti, bubbles, a rainbow",
+    "transform": "turn a human's character into a different creature; a change of pace",
+    "surprise": "a rare stunt, at most once in a long while, and never twice in a row",
 }
 
 PROJECTILES = {

@@ -26,6 +26,8 @@ public struct GameState: Sendable {
     public var combo: Int = 0
     public var eventCount: Int = 0
     public var lastEvent: LastEventInfo?
+    /// Most recent effects, newest first (used to stop the director repeating itself).
+    public var recentEffects: [EffectKind] = []
     public var chaos: Bool = false
 
     public init() {}
@@ -64,6 +66,7 @@ public struct GameSnapshot: Codable, Sendable {
     public var chaos: Bool
     public var trigger: String
     public var last_event: LastEvent?
+    public var recent_effects: [String]
 
     public init(state: GameState, trigger: DecisionTrigger) {
         func r(_ v: Double) -> Double { (v * 100).rounded() / 100 }
@@ -80,6 +83,7 @@ public struct GameSnapshot: Codable, Sendable {
         difficulty = r(state.difficulty)
         chaos = state.chaos
         self.trigger = trigger.rawValue
+        recent_effects = state.recentEffects.map(\.rawValue)
         last_event = state.lastEvent.map {
             LastEvent(effect: $0.effect.rawValue, target: $0.target.key, seconds_ago: r(state.elapsedTime - $0.at))
         }

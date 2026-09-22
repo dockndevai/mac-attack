@@ -22,6 +22,17 @@ Camera (AVFoundation ~30fps) → Vision body boxes (~10fps) → PersonTracker �
                                                GameEvent → SpriteKit renderer → screen
 ```
 
+## Install (no build needed)
+
+Download **[MacAttack-0.1.0.dmg](https://github.com/dockndevai/mac-attack/releases/latest)**, open it,
+run `Install.command` (right-click → Open if Gatekeeper complains), then:
+
+1. Open Mac Attack, allow the camera.
+2. *Optional:* Debug Mode → LAYA → **Set Up Laya** (one-time, ~2.5 GB, needs Python 3.10+).
+   Without it the game runs on its built-in random director.
+3. Debug Mode → SCREENSAVER HELPER → **Install Helper**.
+4. System Settings › Screen Saver › **Mac Attack**.
+
 > **Unsigned build.** This is signed ad-hoc, so macOS will warn on first launch (right-click → Open)
 > and may re-ask for camera permission after each rebuild. Signing with an Apple Developer ID
 > removes both.

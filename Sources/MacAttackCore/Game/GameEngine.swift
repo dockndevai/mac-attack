@@ -260,6 +260,8 @@ public final class GameEngine {
         currentEvent = ev
         state.eventCount += 1
         state.lastEvent = LastEventInfo(effect: d.effect, target: d.target, at: state.elapsedTime)
+        state.recentEffects.insert(d.effect, at: 0)
+        if state.recentEffects.count > 6 { state.recentEffects.removeLast() }
         emit(.event(ev))
         let targetName: String = {
             if case .person(let id) = d.target, let p = state.people.first(where: { $0.id == id }) {
