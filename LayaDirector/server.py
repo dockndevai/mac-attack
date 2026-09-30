@@ -8,7 +8,9 @@ probabilities; this server does not pick the final action.
 """
 
 import argparse
+import gc
 import os
+import signal
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -20,27 +22,84 @@ from questions import build_questions, situation
 
 app = FastAPI(title="Mac Attack Laya Director")
 state: Dict[str, Any] = {"state": "loading", "error": None, "device": None, "model": "english",
-                         "decisions": 0, "last_latency_ms": None, "avg_latency_ms": None}
+                         "decisions": 0, "last_latency_ms": None, "avg_latency_ms": None,
+                         "memory_mb": 0, "sleeps": 0}
 _router = None
 _lat: List[float] = []
+_last_use = time.time()
+_lock = threading.Lock()
+
+# The checkpoint costs ~2.4 GB resident. The game only needs it every few seconds while someone is
+# actually on screen, so drop it when unused and load it again on demand: the game falls back to its
+# local director for the few seconds a reload takes.
+IDLE_UNLOAD_SECONDS = float(os.environ.get("LAYA_IDLE_UNLOAD", 180))
+
+
+def _rss_mb() -> int:
+    try:
+        import resource
+        # macOS reports maxrss in bytes
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024))
+    except Exception:
+        return 0
+
+
+def _release_memory():
+    gc.collect()
+    try:
+        import torch
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+        elif torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
 
 
 def _warm_up():
     global _router
-    try:
-        from laya import Router
+    with _lock:
+        if _router is not None:
+            return
+        state["state"] = "loading"
+        try:
+            from laya import Router
 
-        r = Router(max_loaded=1)
-        agent = r.load("english")
-        state["device"] = str(getattr(agent, "device", "unknown"))
-        # one throwaway pass so the first real decision is not paying for kernel warm-up
-        demo = {"people": [], "people_count": 0, "idle_seconds": 1}
-        r.predict(situation(demo), build_questions(demo), model="english")
-        _router = r
-        state["state"] = "ready"
-    except Exception as e:  # surfaced via /status; the game falls back locally
-        state["state"] = "error"
-        state["error"] = repr(e)
+            r = Router(max_loaded=1)
+            agent = r.load("english")
+            state["device"] = str(getattr(agent, "device", "unknown"))
+            # one throwaway pass so the first real decision is not paying for kernel warm-up
+            demo = {"people": [], "people_count": 0, "idle_seconds": 1}
+            r.predict(situation(demo), build_questions(demo), model="english")
+            _router = r
+            state["state"] = "ready"
+            state["memory_mb"] = _rss_mb()
+        except Exception as e:  # surfaced via /status; the game falls back locally
+            state["state"] = "error"
+            state["error"] = repr(e)
+
+
+def _sleep_when_idle():
+    """Unload the checkpoint after a spell with no decisions, and hand the memory back."""
+    global _router
+    while True:
+        time.sleep(15)
+        if _router is None or IDLE_UNLOAD_SECONDS <= 0:
+            continue
+        if time.time() - _last_use < IDLE_UNLOAD_SECONDS:
+            continue
+        with _lock:
+            if _router is None:
+                continue
+            try:
+                _router.unload()
+            except Exception:
+                pass
+            _router = None
+        _release_memory()
+        state["state"] = "sleeping"
+        state["sleeps"] += 1
+        state["memory_mb"] = _rss_mb()
 
 
 class GameStateIn(BaseModel):
@@ -63,9 +122,14 @@ def status():
 
 @app.post("/decide")
 def decide(body: GameStateIn, delay: float = 0.0):
+    global _last_use
     if delay > 0:  # debug hook to simulate a slow director
         time.sleep(min(delay, 10.0))
+    _last_use = time.time()
     if _router is None:
+        # asleep or still starting: wake up in the background and let the game fall back this tick
+        if state["state"] in ("sleeping", "error"):
+            threading.Thread(target=_warm_up, daemon=True).start()
         return {"error": "not ready", "state": state["state"]}
     game = body.model_dump()
     # Laya reads the state once per question, so a compact text summary of the abstract
@@ -79,18 +143,36 @@ def decide(body: GameStateIn, delay: float = 0.0):
     state["decisions"] += 1
     state["last_latency_ms"] = ms
     state["avg_latency_ms"] = round(sum(_lat) / len(_lat), 1)
+    _last_use = time.time()
     return {"answers": result["answers"], "situation": text,
             "latency_ms": ms, "device": state["device"]}
 
 
+def _shutdown(reason: str):
+    """Exit without yanking the GPU out from under Metal: a hard os._exit() in the middle of an
+    MPS encode aborts with a Metal assertion (SIGABRT) and leaves a crash report behind."""
+    with _lock:
+        global _router
+        if _router is not None:
+            try:
+                _router.unload()
+            except Exception:
+                pass
+            _router = None
+    _release_memory()
+    os.kill(os.getpid(), signal.SIGTERM)          # let uvicorn close its sockets
+    time.sleep(5)
+    os._exit(0)                                    # last resort if it hangs
+
+
 def _watch_parent(pid: int):
-    # If the game dies without cleaning up, don't leave a 1 GB model process running.
+    # If the game dies without cleaning up, don't leave a 2 GB model process running.
     while True:
         time.sleep(2)
         try:
             os.kill(pid, 0)
         except OSError:
-            os._exit(0)
+            _shutdown("parent gone")
 
 
 if __name__ == "__main__":
@@ -103,4 +185,5 @@ if __name__ == "__main__":
     if args.parent_pid:
         threading.Thread(target=_watch_parent, args=(args.parent_pid,), daemon=True).start()
     threading.Thread(target=_warm_up, daemon=True).start()
+    threading.Thread(target=_sleep_when_idle, daemon=True).start()
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

@@ -78,6 +78,7 @@ final class AppState {
     @ObservationIgnored private var sidecarWatchdog: Task<Void, Never>?
     @ObservationIgnored private var statsTask: Task<Void, Never>?
     @ObservationIgnored private var helperHeartbeat: Timer?
+    @ObservationIgnored private var sidecarIdleTimer: Timer?
     @ObservationIgnored private var lastTracks: [TrackSnapshot] = []
 
     var isHelper: Bool { options.helper }
@@ -117,7 +118,7 @@ final class AppState {
         NSLog("MacAttack: start mode=%@ laya=%@", mode.rawValue, sidecar.directory?.path ?? "nil")
         coordinator.start()
         refreshLayaSetup()
-        if !options.noSidecar {
+        if !options.noSidecar && !options.helper {
             let sc = sidecar, adapter = coordinator.laya
             Task.detached { await sc.launchIfNeeded(adapter: adapter) }
             // Watchdog: if the sidecar dies or was never reachable, (re)launch it.
@@ -127,7 +128,8 @@ final class AppState {
                     try? await Task.sleep(nanoseconds: 3_000_000_000)
                     guard let self else { return }
                     if case .unavailable(let why) = self.coordinator.health, why.contains("not reachable"),
-                       self.coordinator.useLaya, !self.sidecar.isRunning {
+                       self.coordinator.useLaya, !self.sidecar.isRunning,
+                       !self.isHelper || self.helperClientActive {
                         unreachableFor += 3
                         if unreachableFor >= 6 { self.sidecar.launch(); unreachableFor = 0 }
                     } else {
@@ -175,8 +177,24 @@ final class AppState {
             self.helperClientActive = active
             if active {
                 self.camera.start()
+                self.sidecarIdleTimer?.invalidate()
+                self.sidecarIdleTimer = nil
+                if !self.options.noSidecar, !self.sidecar.isRunning {
+                    let sc = self.sidecar, adapter = self.coordinator.laya
+                    Task.detached { await sc.launchIfNeeded(adapter: adapter) }
+                }
             } else {
                 self.camera.stop()
+                // Laya costs ~2.4 GB resident. It unloads its own checkpoint after a few idle
+                // minutes; if the screensaver stays away, stop the process entirely.
+                self.sidecarIdleTimer?.invalidate()
+                self.sidecarIdleTimer = Timer.scheduledTimer(withTimeInterval: 600, repeats: false) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self, !self.helperClientActive else { return }
+                        self.sidecar.terminate()
+                        NSLog("MacAttack helper: screensaver idle 10 min → stopped Laya")
+                    }
+                }
                 // publish an explicit "camera off" so a late poll can't report a stale ACTIVE
                 self.perception.publish(tracks: [], camera: "OFF", size: self.camera.dimensions)
             }
@@ -196,6 +214,7 @@ final class AppState {
     }
 
     func shutdown() {
+        sidecarIdleTimer?.invalidate()
         helperHeartbeat?.invalidate()
         perception.stop()
         statsTask?.cancel()

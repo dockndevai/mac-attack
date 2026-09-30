@@ -34,10 +34,16 @@ public final class LayaSidecar: @unchecked Sendable {
         guard !isRunning else { return }
         NSLog("MacAttack: launching Laya sidecar")
         process = nil
-        guard let dir = directory else { state = .missing("LayaDirector path unknown"); return }
+        guard let dir = directory else {
+            state = .missing("LayaDirector path unknown")
+            NSLog("MacAttack: sidecar launch failed — LayaDirector path unknown")
+            return
+        }
         let script = dir.appendingPathComponent("run.sh")
         guard FileManager.default.isExecutableFile(atPath: script.path) else {
-            state = .missing(script.path); return
+            state = .missing(script.path)
+            NSLog("MacAttack: sidecar launch failed — not executable: %@", script.path)
+            return
         }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -53,14 +59,17 @@ public final class LayaSidecar: @unchecked Sendable {
         }
         p.terminationHandler = { [weak self] proc in
             let code = proc.terminationStatus
+            NSLog("MacAttack: sidecar exited with status %d", code)
             DispatchQueue.main.async { self?.state = .exited(code) }
         }
         do {
             try p.run()
             process = p
             state = .running(p.processIdentifier)
+            NSLog("MacAttack: sidecar started pid %d (%@ %@)", p.processIdentifier, script.path, "\(p.arguments ?? [])")
         } catch {
             state = .missing("\(error)")
+            NSLog("MacAttack: sidecar launch threw: %@", "\(error)")
         }
     }
 

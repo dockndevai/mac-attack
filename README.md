@@ -110,6 +110,21 @@ temperature bucket, which ships uncalibrated (probabilities saturate to 1.0), so
 into `style` + a ≤5-option pick. Sending the situation as text instead of the raw JSON halves latency
 (~630 ms → ~340 ms on MPS) because Laya re-reads the state once per question.
 
+## Memory
+
+The Laya checkpoint costs about **2.4 GB resident** while loaded, so it is not kept around:
+
+- **Idle unload.** After 3 minutes with no decisions the sidecar drops the checkpoint and returns the
+  memory (measured: 2,398 MB → 320 MB). The next decision wakes it in the background — the game
+  falls back to its local director for the few seconds that takes. Tune with `LAYA_IDLE_UNLOAD`
+  (seconds; 0 disables).
+- **Nothing runs until it is needed.** In screensaver-helper mode the sidecar is not started at
+  login: it starts when the screensaver first asks for people, and is stopped entirely if the
+  screensaver stays away for 10 minutes. An idle Mac runs the helper alone, at ~26 MB.
+- **Watch it yourself:** `curl -s localhost:8777/status` reports `state` (`ready` / `sleeping` /
+  `loading`), and `top -l 1 -pid $(pgrep -f LayaDirector) -stats mem` shows the real footprint
+  (`ps` RSS under-reports it badly — it showed 46 MB for a 2.4 GB process).
+
 ## Privacy
 
 - Vision `VNDetectHumanRectanglesRequest` → body rectangles only. Optional **face-box assist**

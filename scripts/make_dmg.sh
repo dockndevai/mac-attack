@@ -25,6 +25,12 @@ mkdir -p "$HOME/Library/Screen Savers"
 rm -rf "$HOME/Library/Screen Savers/MacAttack.saver"
 cp -R "$HERE/MacAttack.saver" "$HOME/Library/Screen Savers/"
 xattr -dr com.apple.quarantine "/Applications/MacAttack.app" "$HOME/Library/Screen Savers/MacAttack.saver" 2>/dev/null || true
+# If the camera helper is already installed, restart it on the new binary. Without this the old
+# one keeps running against a replaced executable and macOS kills it for an invalid signature.
+if launchctl print "gui/$UID/local.macattack.helper" >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$UID/local.macattack.helper" >/dev/null 2>&1 || true
+  echo "Restarted the screensaver helper on the new build."
+fi
 echo
 echo "Installed."
 echo "  1. Open /Applications/MacAttack.app and allow the camera."
