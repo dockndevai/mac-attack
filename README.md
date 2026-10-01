@@ -22,6 +22,13 @@ Camera (AVFoundation ~30fps) → Vision body boxes (~10fps) → PersonTracker �
                                                GameEvent → SpriteKit renderer → screen
 ```
 
+## Free, and also a dollar
+
+The source is MIT licensed: clone it, build it, use it, change it, ship it — free, forever.
+
+If you would rather not build anything, a ready-to-run build is on Lemon Squeezy for **$1**. It is
+the same software; you are paying for the convenience and for the next version getting written.
+
 ## Install (no build needed)
 
 Download **[MacAttack-0.1.0.dmg](https://github.com/dockndevai/mac-attack/releases/latest)**, open it,
@@ -257,3 +264,13 @@ To remove: Remove Helper in the app, delete `~/Library/Screen Savers/MacAttack.s
     windows); visible windows render at 60 fps.
 - Not tested automatically: camera-denied flow (needs `tccutil reset Camera local.macattack`) and camera
   unplug. Both paths show a status card with a Simulation fallback.
+
+## Credits & licence
+
+Mac Attack is MIT licensed — see [LICENSE](LICENSE).
+
+The director is [Laya](https://huggingface.co/convaiinnovations/laya) by Convai Innovations,
+Apache-2.0. Mac Attack does not redistribute the model: the optional setup step downloads it from
+Hugging Face into your own cache.
+
+Built with [Claude Code](https://claude.com/claude-code).
