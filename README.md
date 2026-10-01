@@ -110,6 +110,27 @@ temperature bucket, which ships uncalibrated (probabilities saturate to 1.0), so
 into `style` + a ≤5-option pick. Sending the situation as text instead of the raw JSON halves latency
 (~630 ms → ~340 ms on MPS) because Laya re-reads the state once per question.
 
+## Signing & notarizing (for distribution)
+
+Builds are ad-hoc signed by default, which is why macOS warns about them. With a paid Apple
+Developer ID the same scripts produce a build that opens without any warning:
+
+```bash
+# once: store an app-specific password for notarytool
+xcrun notarytool store-credentials macattack-notary \
+  --apple-id you@example.com --team-id TEAMID --password <app-specific-password>
+
+SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+NOTARY_PROFILE=macattack-notary \
+  ./scripts/make_dmg.sh 1.0.0
+```
+
+That signs the app and the screensaver with the hardened runtime and
+`Resources/MacAttack.entitlements` (camera, plus the exceptions the Python sidecar needs), signs
+the disk image, submits it to Apple, waits, staples the ticket and verifies it with `spctl`.
+
+A stable signing identity also stops macOS re-asking for camera permission after every update.
+
 ## Memory
 
 The Laya checkpoint costs about **2.4 GB resident** while loaded, so it is not kept around:

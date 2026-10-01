@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Hardened runtime blocks camera access unless it is requested explicitly. -->
+	<key>com.apple.security.device.camera</key><true/>
+	<!-- The Laya sidecar is a Python process we launch; without this, notarized builds refuse to
+	     run an interpreter that is not signed by us. -->
+	<key>com.apple.security.cs.allow-dyld-environment-variables</key><true/>
+	<key>com.apple.security.cs.disable-library-validation</key><true/>
+</dict>
+</plist>

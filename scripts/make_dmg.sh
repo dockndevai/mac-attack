@@ -80,4 +80,28 @@ EOF
 
 hdiutil create -quiet -volname "Mac Attack $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
 rm -rf "$STAGE"
+
+# --- notarization -------------------------------------------------------------
+# Needs a paid Apple Developer ID and a stored notary profile, created once with:
+#   xcrun notarytool store-credentials macattack-notary \
+#     --apple-id you@example.com --team-id TEAMID --password <app-specific-password>
+# Then: SIGN_IDENTITY="Developer ID Application: ..." NOTARY_PROFILE=macattack-notary scripts/make_dmg.sh
+IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Developer ID Application/{print $2; exit}')}"
+if [ -n "${NOTARY_PROFILE:-}" ] && [ -n "$IDENTITY" ]; then
+  echo "Signing the disk image…"
+  codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+  echo "Submitting to Apple for notarization (this usually takes a few minutes)…"
+  if xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait; then
+    xcrun stapler staple "$DMG"
+    xcrun stapler validate "$DMG" && echo "Notarized and stapled."
+    spctl -a -t open --context context:primary-signature -v "$DMG" 2>&1 | tail -2 || true
+  else
+    echo "!! Notarization failed. Inspect it with:" >&2
+    echo "   xcrun notarytool log <submission-id> --keychain-profile $NOTARY_PROFILE" >&2
+    exit 1
+  fi
+else
+  echo "NOTE: unsigned/un-notarized build — buyers will see a Gatekeeper warning."
+  echo "      Set SIGN_IDENTITY and NOTARY_PROFILE to produce a distributable build."
+fi
 echo "Built $DMG ($(du -h "$DMG" | cut -f1))"
