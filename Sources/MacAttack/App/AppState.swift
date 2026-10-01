@@ -142,6 +142,7 @@ final class AppState {
             startHelperMode()
         } else {
             applyMode()
+            restartStaleHelper()
         }
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -165,6 +166,12 @@ final class AppState {
             fh.seekToEndOfFile(); fh.write(Data(line.utf8)); try? fh.close()
         } else {
             try? Data(line.utf8).write(to: url)
+        }
+        // keep the last ~500 lines: this used to grow without limit
+        if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int, size > 96_000,
+           let text = try? String(contentsOf: url, encoding: .utf8) {
+            let tail = text.split(separator: "\n", omittingEmptySubsequences: false).suffix(500).joined(separator: "\n")
+            try? tail.write(to: url, atomically: true, encoding: .utf8)
         }
     }
 
@@ -248,6 +255,50 @@ final class AppState {
             scene.contentAspect = nil
         }
         scene.showDebugBoxes = debug && showBoxes
+    }
+
+    /// After an update the launchd helper is still running the previous executable; macOS kills it
+    /// for an invalid code signature and launchd restarts it into the same state. Restarting it
+    /// once, from the freshly launched app, breaks that loop.
+    private func restartStaleHelper() {
+        guard helperAgent.isInstalled else { diag("helper agent not installed; no staleness check"); return }
+        Task { [weak self] in
+            guard let self else { return }
+            var req = URLRequest(url: URL(string: "http://127.0.0.1:8778/tracks")!)
+            req.timeoutInterval = 2
+            guard let (data, _) = try? await URLSession.shared.data(for: req) else {
+                self.diag("helper not reachable; nothing to restart")
+                return
+            }
+            guard let snap = try? JSONDecoder().decode(PerceptionServer.Snapshot.self, from: data) else {
+                self.diag("helper reply could not be decoded; restarting it")
+                self.helperAgent.restart()
+                return
+            }
+            // A helper too old to report its build is stale by definition.
+            let running = snap.build ?? "(pre-0.1.3)"
+            guard running != PerceptionServer.currentBuildID else {
+                self.diag("helper is on the current build (\(running))")
+                return
+            }
+            self.diag("helper is on build \(running), app is \(PerceptionServer.currentBuildID) — restarting helper")
+            self.helperAgent.restart()
+        }
+    }
+
+    /// Appends to ~/Library/Logs/MacAttack/app.log — the unified log is awkward to read when
+    /// something goes wrong on someone else's Mac.
+    func diag(_ message: String) {
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Logs/MacAttack/app.log")
+        let line = Data("\(ISO8601DateFormatter().string(from: Date())) \(message)\n".utf8)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let fh = try? FileHandle(forWritingTo: url) {
+            fh.seekToEndOfFile(); fh.write(line); try? fh.close()
+        } else {
+            try? line.write(to: url)
+        }
+        NSLog("%@", message)
     }
 
     func refreshLayaSetup() { layaSetup.refresh(layaDirectory: sidecar.directory) }

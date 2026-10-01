@@ -61,6 +61,11 @@ final class HelperLoginItem {
         }
     }
 
+    /// Restart the agent so it picks up a replaced executable.
+    func restart() {
+        launchctl(["kickstart", "-k", "gui/\(getuid())/\(Self.label)"])
+    }
+
     /// Stop the helper for this session (it comes back at next login, or on Install again).
     func stopNow() {
         launchctl(["bootout", "gui/\(getuid())/\(Self.label)"])

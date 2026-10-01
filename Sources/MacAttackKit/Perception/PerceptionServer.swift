@@ -25,6 +25,19 @@ public final class PerceptionServer {
         public var height: Double
         public var tracks: [Track]
         public var t: Double
+        /// Which build the helper is running, so a stale helper can be spotted after an update.
+        public var build: String?
+    }
+
+    /// Captured when this process started: reading it later would pick up a replaced binary on
+    /// disk and hide the very staleness we are looking for.
+    @ObservationIgnored public let buildID = PerceptionServer.currentBuildID
+
+    /// Identifies the executable on disk well enough to notice it has been replaced.
+    public static var currentBuildID: String {
+        let exe = Bundle.main.executableURL?.path ?? "?"
+        let m = (try? FileManager.default.attributesOfItem(atPath: exe)[.modificationDate] as? Date) ?? nil
+        return "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?")-\(Int(m?.timeIntervalSince1970 ?? 0))"
     }
 
     public private(set) var clientCount = 0
@@ -99,7 +112,7 @@ public final class PerceptionServer {
                       vx: round(t.vx * 1000) / 1000, vy: round(t.vy * 1000) / 1000,
                       movement: t.movement.rawValue, dwell: round(t.dwell * 10) / 10)
             },
-            t: Date().timeIntervalSince1970)
+            t: Date().timeIntervalSince1970, build: buildID)
         if let d = try? JSONEncoder().encode(snap) { payload = d }
     }
 
