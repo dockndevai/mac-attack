@@ -26,8 +26,9 @@ Camera (AVFoundation ~30fps) → Vision body boxes (~10fps) → PersonTracker �
 
 The source is MIT licensed: clone it, build it, use it, change it, ship it — free, forever.
 
-If you would rather not build anything, a ready-to-run build is on Lemon Squeezy for **$1**. It is
-the same software; you are paying for the convenience and for the next version getting written.
+If you would rather not build anything, a ready-to-run build is on
+**[Lemon Squeezy for ₹99 (about $1)](https://dockndevai.lemonsqueezy.com/checkout/buy/b4a2a0d4-5fd3-4a33-806b-91ffed2694a8)**.
+It is the same software; you are paying for the convenience and for the next version getting written.
 
 ## Install (no build needed)
 
